@@ -1,0 +1,3 @@
+package scinear
+
+trait Linear {}
