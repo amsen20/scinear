@@ -2,30 +2,30 @@ import scinear.Linear
 
 case class Box(value: Int) extends Linear
 
-sealed trait LinearLinkedList extends Linear
-case class Nil() extends LinearLinkedList
-case class Node(name: String, next: Node, boxedValue: Box)
-    extends LinearLinkedList
+sealed trait LinearNode extends Linear
+case class LinearNil(name: String, boxedValue: Box) extends LinearNode
+case class LinearDataNode(name: String, next: LinearNode, boxedValue: Box) extends LinearNode
 
 /** Allow a iterating through linear linked list
   */
-trait MapFunction {
-  val node: Node = Node("a", Node("b", Node("c", null, Box(3)), Box(2)), Box(1))
+def MapFunction = {
+  val node: LinearDataNode =
+    LinearDataNode("a", LinearDataNode("b", LinearDataNode("c", LinearNil("d", Box(4)), Box(3)), Box(2)), Box(1))
   val f: Box => Box = (b: Box) => Box(b.value + 1)
 
-  def map(node: Node, f: Box => Box): Node = {
+  def map(node: LinearNode, f: Box => Box): LinearNode = {
     node match {
-      case Nil() => Nil()
-      case Node(name, next, boxedValue) =>
-        Node(name, map(next, f), f(boxedValue))
+      case LinearDataNode(name, next, boxedValue) =>
+        LinearDataNode(name, map(next, f), f(boxedValue))
+      case l: LinearNil => l
     }
   }
 
-  def printAll(node: Node): Unit = {
+  def printAll(node: LinearNode): Unit = {
     node match {
-      case Nil() =>
-        println("Nil")
-      case Node(name, next, boxedValue) =>
+      case LinearNil(name, boxedValue) =>
+        println(s"(${name}, ${boxedValue.value})\n")
+      case LinearDataNode(name, next, boxedValue) =>
         print(s"(${name}, ${boxedValue.value}) => ")
         printAll(next)
     }
@@ -37,51 +37,41 @@ trait MapFunction {
 
 /** Don't allow a non-linear class has a field of linear type
   */
-trait LinearField {
-  class A(val box: Box) extends Linear
-  class B(val box: Box) // error: LinearTypes
-}
+class A1(val box: Box) extends Linear
+class B(val box: Box) // error: LinearTypes
 
-/** Don't allow linear types to have methods Methods can be implemented by
-  * defining functions getting the linear type as an argument (self)
+/** Don't allow linear types to have methods Methods can be implemented by defining functions getting the linear type as
+  * an argument (self)
   */
-trait AccessingFieldsAndMethods {
-  class A(val name: String) extends Linear {
-    def print(): Unit = { // error: LinearTypes
-      println(this.name)
-    }
+class A2(val name: String) extends Linear {
+  def print(): Unit = { // error: LinearTypes
+    println(this.name)
   }
 }
 
 /** Don't allow a linear type to mention this during its initialization
   */
-trait ThisInInitialization {
-  class A(val name: String) extends Linear {
-    val self = this // error: LinearTypes
-  }
+class A3(val name: String) extends Linear {
+  val self = this // error: LinearTypes
 }
 
 /** Don't allow using a linear type twice during initialization
   */
-trait LinearTypeUsedTwice {
-  class A(val box: Box) extends Linear {
-    val a = box.value // error: LinearTypes
-    val b = box.value // error: LinearTypes
-  }
+class A4(val box: Box) extends Linear {
+  val a = box.value // error: LinearTypes
+  val b = box.value // error: LinearTypes
 }
 
-/** Don't allow objects of a linear type
+/** Don't allow objects of a linear type Because objects are going to be implemented automatically by the compiler for
+  * classes, not allowing linear objects is not possible. However, there is not use for it because linear values cannot
+  * be captured.
   */
-trait ObjectOfLinearType {
-  object A extends Linear // error: LinearTypes
-}
+// object A5 extends Linear // noerror: LinearTypes
 
 /** Don't allow nested class/trait/object definition for linear types (for now).
   */
-trait NestedDefinition {
-  class A(val box: Box) extends Linear {
-    class B // error: LinearTypes
-    trait C // error: LinearTypes
-    object D // error: LinearTypes
-  }
+class A6(val box: Box) extends Linear {
+  class B // error: LinearTypes
+  trait C // error: LinearTypes
+  object D // error: LinearTypes
 }

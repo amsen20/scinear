@@ -1,20 +1,16 @@
 package scinear
 
-import com.xebia.functional.munitCompilerToolkit.CompilerSuite
 import dotty.tools.dotc.core.Contexts.Context
-import scala.compiletime.testing.typeCheckErrors
-import scala.util.Properties
 import dotty.tools.dotc.core.Contexts.FreshContext
-import dotty.tools.dotc.util.SourceFile
 import dotty.tools.dotc.reporting.{Diagnostic, Reporter, StoreReporter}
-import scala.io.Source
+import dotty.tools.dotc.util.SourceFile
 
-/** An example generated CompilerSuite that will compile the string source code
-  * using the Scinear plugin and check its output agains the expected output in
-  * the assertion after pickleQuotes.
-  *
-  * You will replace this with the tests for your plugin.
-  */
+import scala.compiletime.testing.typeCheckErrors
+import scala.io.Source
+import scala.util.Properties
+
+import com.xebia.functional.munitCompilerToolkit.CompilerSuite
+
 class ScinearSuite extends ThoroughCompilerSuite:
 
   val inputDirPath =
@@ -35,12 +31,11 @@ class ScinearSuite extends ThoroughCompilerSuite:
       }
       .toSet
     val gotErrorLines = got.map { _.pos.line }.toSet
+    got.foreach(e => println(e.pos.line + 1 + ": " + e.message))
 
     val gotLines =
       gotErrorLines.toList.map(i => s"${i + 1}: ${sourceCode.split("\n")(i)}")
-    val shouldLines = shouldErrorLines.toList.map(i =>
-      s"${i + 1}: ${sourceCode.split("\n")(i)}"
-    )
+    val shouldLines = shouldErrorLines.toList.map(i => s"${i + 1}: ${sourceCode.split("\n")(i)}")
 
     assertEquals(
       gotLines.sorted,
