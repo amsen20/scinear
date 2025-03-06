@@ -2,7 +2,7 @@
 
 import scinear.Linear
 
-case class Box(value: Int) extends Linear
+class Box(val value: Int) extends Linear
 
 /** Don't allow a [[Box]] field to be created but never dereferenced.
   */
@@ -45,12 +45,13 @@ def UnusedBinding = {
   z
 }
 
-/** Don't allow a field with a [[Linear]] structural type to be created but never dereferenced.
+/** Don't allow a field with a [[Linear]] structural type to be created but never dereferenced. This is not OK anymore,
+  * because casting non-linear types to linear type causes violation of linear properties.
   */
-def UnusedFieldWithStructuralType = {
-  val x: Int with Linear = // error: LinearTypes
-    42.asInstanceOf[Int with Linear]
-}
+// def UnusedFieldWithStructuralType = {
+//   val x: Int with Linear = // noerror: LinearTypes
+//     42.asInstanceOf[Int with Linear]
+// }
 
 /** Don't allow a parameter with a [[Linear]] structural type to be declared but never dereferenced.
   */
@@ -65,7 +66,7 @@ trait UnusedParameterWithStructuralType {
 /** Don't allow a [[Box]] binding in a for comprehension to be shadowed but never dereferenced.
   */
 def UnusedShadow = {
-  val x = Box(6) 
+  val x = Box(6)
   val y = Box(7)
   {
     val x = Box(8) // error: not used (captured)

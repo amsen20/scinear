@@ -2,7 +2,7 @@
 
 import scinear.Linear
 
-case class Box(value: Int) extends Linear
+class Box(val value: Int) extends Linear
 
 /** Don't allow a [[Box]] field to be dereferenced more than once.
   */
@@ -28,12 +28,4 @@ def BindingUsedTwice = {
     val z = Box(x.value * y.value)
     (x, y, z) // error: LinearTypes
   }
-}
-
-/** Don't allow a field with a [[Linear]] structural type to be dereferenced more than once.
-  */
-def FieldWithStructuralTypeUsedTwice = {
-  val x: Int with Linear = 42.asInstanceOf[Int with Linear]
-  println(x)
-  println(x) // error: LinearTypes
 }

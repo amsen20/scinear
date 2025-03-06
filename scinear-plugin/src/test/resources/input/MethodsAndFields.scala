@@ -1,10 +1,20 @@
 import scinear.Linear
 
-case class Box(value: Int) extends Linear
+class Box(val value: Int) extends Linear
 
-sealed trait LinearNode extends Linear
-case class LinearNil(name: String, boxedValue: Box) extends LinearNode
-case class LinearDataNode(name: String, next: LinearNode, boxedValue: Box) extends LinearNode
+trait LinearNode extends Linear
+
+class LinearNil(val name: String, val boxedValue: Box) extends LinearNode
+object LinearNil {
+  def unapply(node: LinearNil): Option[(String, Box)] =
+    Some((node.name, node.boxedValue))
+}
+
+class LinearDataNode(val name: String, val next: LinearNode, val boxedValue: Box) extends LinearNode
+object LinearDataNode {
+  def unapply(node: LinearDataNode): Option[(String, LinearNode, Box)] =
+    Some((node.name, node.next, node.boxedValue))
+}
 
 /** Allow a iterating through linear linked list
   */

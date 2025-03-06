@@ -1,6 +1,6 @@
 import scinear.Linear
 
-case class Box(value: Int) extends Linear
+class Box(val value: Int) extends Linear
 
 /** Don't allow a [[Box]] instance to be captured by a closure.
   */

@@ -2,7 +2,7 @@
 
 import scinear.Linear
 
-case class Box(value: Int) extends Linear
+class Box(val value: Int) extends Linear
 
 /** Allow a [[Box]] field to be dereferenced exactly once.
   */
