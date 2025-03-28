@@ -40,10 +40,21 @@ class ScinearPhase() extends PluginPhase:
           case tpd.DefDef(name, _, _, _) =>
             if name.toString != "unapply" then traverseChildren(tree)
           case tpd.TypeApply(fun, args) =>
-            args.foreach(arg =>
-              if arg.tpe != null && isLinear(arg.tpe) then
-                report.error("Cannot pass linear types as type arguments", arg.sourcePos)
-            )
+            val isAppliedToLinearConstructor = (fun match {
+              case tpd.Select(_, name) =>
+                // checking the name equality is too restrict, but is safer than not checking it
+                name == StdNames.nme.CONSTRUCTOR && fun.symbol != null && fun.symbol.owner.typeRef != null && isLinear(
+                  fun.symbol.owner.typeRef
+                )
+              case _ => false
+            })
+
+            // It is ok to type apply linear types, for constructing other linear objects.
+            if !isAppliedToLinearConstructor then
+              args.foreach(arg =>
+                if arg.tpe != null && isLinear(arg.tpe) then
+                  report.error("Cannot pass linear types as type arguments", arg.sourcePos)
+              )
           case _ => traverseChildren(tree)
     traverser.traverse(expr)
 
@@ -286,6 +297,7 @@ class ScinearPhase() extends PluginPhase:
             report.error("Only fields without initialization are allowed in linear types", valDef.sourcePos)
             false
           else true
+
         case defDef: tpd.DefDef =>
           if !defDef.symbol.isAnyOverride then
             if !isCompilerGeneratedMethod(defDef) then
@@ -307,8 +319,14 @@ class ScinearPhase() extends PluginPhase:
           // TODO: be aware of methods that are defined by default.
           // TODO: for now, it is disabled by not allowing calling methods on linear types.
           true
+
+        case typeDef: tpd.TypeDef =>
+          if typeDef.isClassDef then
+            report.error("You are not allowed to define new classes inside a linear type", typeDef.sourcePos)
+          true
+
         case e =>
-          report.error("Only vals are allowed in linear types", e.sourcePos)
+          report.error("This is not allowed in a linear type", e.sourcePos)
           false
       }
       .fold(true)(_ && _)
@@ -370,7 +388,6 @@ class ScinearPhase() extends PluginPhase:
       // TODO: recursively check the tree
 
   override def transformUnit(tree: tpd.Tree)(using Context): tpd.Tree =
-    println(tree.show)
     checkLinearPolymorphicTypeArgument(tree)
     reachEntryPoints(tree)
     tree

@@ -31,7 +31,7 @@ class ScinearSuite extends ThoroughCompilerSuite:
       }
       .toSet
     val gotErrorLines = got.map { _.pos.line }.toSet
-    got.foreach(e => println(e.pos.line + 1 + ": " + e.message))
+    // for debug: got.foreach(e => println(e.pos.line + 1 + ": " + e.message))
 
     val gotLines =
       gotErrorLines.toList.map(i => s"${i + 1}: ${sourceCode.split("\n")(i)}")
