@@ -2,6 +2,8 @@ import scinear.Linear
 
 class Box(val value: Int) extends Linear
 
+// ! IMPORTANT: here when you use the pair, you may not use all fields. It means that when
+// ! a linear type becomes garbage, all its fields will become garbage as well.
 class LinearPair[T, U](val x: T, val y: U) extends Linear {
   type A = Int
 }
