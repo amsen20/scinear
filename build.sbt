@@ -30,7 +30,7 @@ ThisBuild / scmInfo := Some(
   )
 )
 //END-YOU MAY REMOVE THIS IF YOU HAVE THE PROJECT IN A LOCAL GIT CHECKOUT OF A REMOTE REPOSITORY
-ThisBuild / version := "0.2.0-SNAPSHOT"
+ThisBuild / version := "0.2.1-SNAPSHOT"
 ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches :=
   Seq(RefPredicate.StartsWith(Ref.Tag("v")))
