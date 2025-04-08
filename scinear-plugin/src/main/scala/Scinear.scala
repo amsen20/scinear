@@ -40,20 +40,21 @@ class ScinearPhase() extends PluginPhase:
           case tpd.DefDef(name, _, _, _) =>
             if name.toString != "unapply" then traverseChildren(tree)
           case tpd.TypeApply(fun, args) =>
-            val isAppliedToLinearConstructor = (fun match {
-              case tpd.Select(_, name) =>
-                // checking the name equality is too restrict, but is safer than not checking it
-                name == StdNames.nme.CONSTRUCTOR && fun.symbol != null && fun.symbol.owner.typeRef != null && isLinear(
-                  fun.symbol.owner.typeRef
-                )
-              case _ => false
-            })
+            // TODO check the logic, it's now ad-hoc style.
+            val isAppliedToLinearMethod = (
+              fun.symbol != null &&
+                fun.symbol.owner.typeRef != null &&
+                (isLinear(fun.symbol.owner.typeRef) || isLinear(fun.symbol.owner.companionClass.typeRef))
+            )
 
-            // It is ok to type apply linear types, for constructing other linear objects.
-            if !isAppliedToLinearConstructor then
+            // It is ok to type apply linear types, to be used in linear type methods.
+            if !isAppliedToLinearMethod then
               args.foreach(arg =>
                 if arg.tpe != null && isLinear(arg.tpe) then
-                  report.error("Cannot pass linear types as type arguments", arg.sourcePos)
+                  report.error(
+                    "Passing linear types as arguments are allowed only for linear type methods",
+                    arg.sourcePos
+                  )
               )
           case _ => traverseChildren(tree)
     traverser.traverse(expr)
@@ -134,7 +135,7 @@ class ScinearPhase() extends PluginPhase:
             .usedAssumptions
 
         case tpd.Select(qualifier, _) =>
-          checkExpr(qualifier, assumptions)
+            checkExpr(qualifier, assumptions)
 
         case Util.Call(ref, argss) =>
           val afterFn = AssumptionBag(assumptions).after(checkExpr(ref, _))
