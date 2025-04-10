@@ -3,12 +3,22 @@ package scinear
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Names.Name
 import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.Types.AppliedType
 import dotty.tools.dotc.core.Types.Type
 
 import scala.collection.mutable
 
-def isLinear(tpe: Type)(using Context): Boolean =
+def isDirectLinear(tpe: Type)(using Context): Boolean =
   tpe.baseClasses.exists(_.fullName.toString == "scinear.Linear")
+
+def isLinear(tpe: Type)(using Context): Boolean =
+  isDirectLinear(tpe) || (
+    tpe match
+      case appliedType: AppliedType =>
+        appliedType.args.exists(isLinear(_))
+      case _ =>
+        false
+  )
 
 def isLinear(sym: Symbol)(using Context): Boolean =
   isLinear(sym.info)
@@ -17,8 +27,7 @@ def isLinear(sym: Symbol)(using Context): Boolean =
   */
 type Assumptions = Map[Name, Symbol]
 
-extension (assumptions: Assumptions)
-  def --(that: Assumptions): Assumptions = assumptions.--(that.keySet)
+extension (assumptions: Assumptions) def --(that: Assumptions): Assumptions = assumptions.--(that.keySet)
 
 val emptyAssumptions: Assumptions = Map[Name, Symbol]()
 
