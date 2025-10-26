@@ -1,6 +1,6 @@
 import Dependencies.Compile._
 
-ThisBuild / scalaVersion := "3.6.3"
+ThisBuild / scalaVersion := "3.7.3"
 ThisBuild / organization := "ca.uwaterloo.plg"
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / homepage := Some(
