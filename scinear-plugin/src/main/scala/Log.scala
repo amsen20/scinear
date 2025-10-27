@@ -12,8 +12,7 @@ object logger:
   inline val configLevel = NONE
 
   private inline def log(msg: => String, inline level: LogLevel): Unit =
-    inline if configLevel >= level then
-      println(s"[${level}] $msg")
+    inline if configLevel >= level then println(s"[${level}] $msg")
 
   inline def info(msg: => String): Unit =
     log(msg, INFO)

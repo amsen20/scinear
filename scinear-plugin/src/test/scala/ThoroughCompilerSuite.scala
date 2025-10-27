@@ -1,20 +1,21 @@
 package scinear
 
-import com.xebia.functional.munitCompilerToolkit.CompilerSuite
 import dotty.tools.dotc.Compiler
 import dotty.tools.dotc.ast.tpd.*
-import dotty.tools.dotc.core.Phases.Phase
-import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.core.Comments.ContextDoc
 import dotty.tools.dotc.core.Comments.ContextDocstrings
 import dotty.tools.dotc.core.Contexts.*
+import dotty.tools.dotc.core.Phases.Phase
 import dotty.tools.dotc.core.Symbols.Symbol
+import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.reporting.{Diagnostic, Reporter, StoreReporter}
-import munit.FunSuite
-
-import scala.util.Properties
 import dotty.tools.dotc.util.SourceFile
 import dotty.tools.io.VirtualDirectory
+
+import scala.util.Properties
+
+import com.xebia.functional.munitCompilerToolkit.CompilerSuite
+import munit.FunSuite
 
 class ThoroughCompilerSuite extends CompilerSuite:
 
