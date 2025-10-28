@@ -5,6 +5,8 @@ class Box(value: Int) extends Linear
 
 def f[T](x: T): T = x
 
+/** Promote a non-linear polymorphic type when instantiated with a linear type parameter.
+  */
 def polymorphicPromotion(): Unit = {
   val x: Dummy[Box] = Dummy(Box(42))
   val xx = x
@@ -12,6 +14,8 @@ def polymorphicPromotion(): Unit = {
   xx
 }
 
+/** Don't allow polymorphic function arguments to be linear types.
+  */
 def polymorphicFunctionArgument(): Unit = {
   val y: Dummy[Dummy[Int]] = Dummy(Dummy(42))
   val z = Box(2)

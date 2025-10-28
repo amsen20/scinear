@@ -2,7 +2,7 @@ import scinear.Linear
 
 class Box(val value: Int) extends Linear
 
-/** Allow a [[Box]] instance to be dereferenced in an if statement.
+/** Allow a linear object to be referenced in an if statement.
   */
 def UsageInIf = {
   val box: Box = Box(42)
@@ -15,7 +15,7 @@ def UsageInIf = {
   }
 }
 
-/** Allow a [[Box]] instance to be dereferenced in an if-else statement.
+/** Allow a linear object to be referenced in an if-else statement.
   */
 def DoubleUsageInIf = {
   val box: Box = Box(42)
@@ -27,7 +27,7 @@ def DoubleUsageInIf = {
   }
 }
 
-/** Don't allow a [[Box]] instance to be dereferenced after an if-else statement.
+/** Don't allow a linear object to be referenced after an if-else statement.
   */
 def UsageAfterIf = {
   val box: Box = Box(42)
@@ -41,7 +41,7 @@ def UsageAfterIf = {
   println(box) // error: LinearTypes
 }
 
-/** Don't allow a [[Box]] instance to be dereferenced in a loop.
+/** Don't allow a linear object to be referenced in a loop.
   */
 def UsageInLoops = {
   val box1: Box = Box(42) // error: LinearTypes

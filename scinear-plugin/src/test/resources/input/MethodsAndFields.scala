@@ -20,7 +20,11 @@ object LinearDataNode {
   */
 def MapFunction = {
   val node: LinearDataNode =
-    LinearDataNode("a", LinearDataNode("b", LinearDataNode("c", LinearNil("d", Box(4)), Box(3)), Box(2)), Box(1))
+    LinearDataNode(
+      "a",
+      LinearDataNode("b", LinearDataNode("c", LinearNil("d", Box(4)), Box(3)), Box(2)),
+      Box(1)
+    )
   val f: Box => Box = (b: Box) => Box(b.value + 1)
 
   def map(node: LinearNode, f: Box => Box): LinearNode = {
@@ -50,8 +54,8 @@ def MapFunction = {
 class A1(val box: Box) extends Linear
 class B(val box: Box) // error: LinearTypes
 
-/** Don't allow linear types to have methods Methods can be implemented by defining functions getting the linear type as
-  * an argument (self)
+/** Don't allow linear types to have methods Methods can be implemented by defining functions
+  * getting the linear type as an argument (self)
   */
 class A2(val name: String) extends Linear {
   def print(): Unit = { // error: LinearTypes
@@ -71,12 +75,6 @@ class A4(val box: Box) extends Linear {
   val a = box.value // error: LinearTypes
   val b = box.value // error: LinearTypes
 }
-
-/** Don't allow objects of a linear type Because objects are going to be implemented automatically by the compiler for
-  * classes, not allowing linear objects is not possible. However, there is not use for it because linear values cannot
-  * be captured.
-  */
-// object A5 extends Linear // noerror: LinearTypes
 
 /** Don't allow nested class/trait/object definition for linear types (for now).
   */

@@ -2,11 +2,13 @@ import scinear.Linear
 
 class Box(val value: Int) extends Linear
 
-// ! IMPORTANT: here when you use the pair, you may not use all fields. It means that when
-// ! a linear type becomes garbage, all its fields will become garbage as well.
+/** NOTE: By using a linear pair instance, we might not use one (or both) of its fields. This means
+  * that in the tree of linear objects, some nodes might not be used at all.
+  */
 class LinearPair[T, U](val x: T, val y: U) extends Linear {
   type A = Int
 }
+
 object LinearPair {
   def unapply[T, U](p: LinearPair[T, U]): Option[(T, U)] = Some((p.x, p.y))
 }

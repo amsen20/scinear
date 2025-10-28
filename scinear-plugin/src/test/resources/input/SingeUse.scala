@@ -4,7 +4,7 @@ import scinear.Linear
 
 class Box(val value: Int) extends Linear
 
-/** Allow a [[Box]] field to be dereferenced exactly once.
+/** Allow a linear object field to be referenced exactly once.
   */
 def FieldUsedOnce = {
   val box: Box = Box(42)

@@ -16,10 +16,10 @@ class ScinearSuite extends ThoroughCompilerSuite:
   val inputDirPath =
     "src/test/resources/input"
 
-  // ! WARN: This is a temporary solution for testing compilation errors.
-  // ! The correct way is to use the same mechanism as the scala3 compiler in tests/neg folder,
-  // ! But I couldn't find a way to config sbt file for that (with plugin being enabled).
-  // ! So, for now I am using this.
+  /** FIXME: This is a temporary solution for testing compilation errors. The correct way is to use
+    * the same mechanism as the scala3 compiler in tests/neg folder, but I couldn't find a way to
+    * config sbt file for that (with plugin being enabled). So, for now I am using this.
+    */
   def compareErrorsFromCompilation(file: java.io.File) =
     val sourceCode = Source.fromFile(file).mkString
     val got = compileAndGetErrors(sourceCode)

@@ -4,17 +4,15 @@ import scinear.Linear
 
 class Box(val value: Int) extends Linear
 
-/** Don't allow a [[Box]] field to be dereferenced more than once.
+/** Don't allow a linear object be referenced more than once.
   */
-def FieldUsedTwice = {
-  val box: Box = Box(42)
-  println(box)
-  println(box) // error: LinearTypes
-}
+def MultipleUse = {
+  def case0 = {
+    val box: Box = Box(42)
+    println(box)
+    println(box) // error: LinearTypes
+  }
 
-/** Don't allow a [[Box]] binding in a for comprehension to be dereferenced more than once.
-  */
-def BindingUsedTwice = {
   def case1 = {
     val x = Box(6)
     val y = Box(x.value + 1)
