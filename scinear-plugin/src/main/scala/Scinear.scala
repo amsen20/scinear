@@ -251,7 +251,12 @@ class ScinearPhase() extends PluginPhase:
             cases.map(caseDef => checkExpr(caseDef.body, afterBlock.notUsedAssumptions))
           if !casesAssumptions.forall(_ == casesAssumptions.head) then
             report.error("All catch blocks should use the same linear values", expr.sourcePos)
-          checkExpr(finalizer, afterBlock.notUsedAssumptions -- casesAssumptions.head)
+          checkExpr(
+            finalizer,
+            afterBlock.notUsedAssumptions -- (if casesAssumptions.nonEmpty then
+                                                casesAssumptions.head
+                                              else emptyAssumptions)
+          )
 
         case tpd.SeqLiteral(elems, elemtpt) =>
           elems
