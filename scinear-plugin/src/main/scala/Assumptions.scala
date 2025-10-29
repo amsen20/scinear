@@ -9,6 +9,7 @@ import dotty.tools.dotc.core.Types
 import scala.collection.mutable
 
 /** Assumption list described in the main paper.
+ * TODO: Refactor it to a set of symbols only.
   */
 type Assumptions = Map[Name, Symbols.Symbol]
 
