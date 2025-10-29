@@ -125,6 +125,14 @@ class ScinearPhase() extends PluginPhase:
     logger.debug("Checking expr: " + expr.show + " // " + expr) {
       expr match
         case ident: tpd.Ident =>
+          val linearTermsInType = getLinearTermsMentionedInTypeParameters(ident.symbol)
+          linearTermsInType.foreach(sym =>
+            if !assumptions.contains(sym.name) then
+              report.error(
+                s"Linear value ${sym.name} is mentioned in the type of ${ident.name} but is either not in scope or used already.",
+                ident.sourcePos
+              )
+          )
           if isLinear(ident.symbol) then
             if assumptions.contains(ident.name) then Map[Name, Symbol](ident.name -> ident.symbol)
             else
