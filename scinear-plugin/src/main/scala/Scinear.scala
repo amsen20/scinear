@@ -138,7 +138,9 @@ class ScinearPhase() extends PluginPhase:
     afterBody.usedAssumptions -- createdAssumptions
 
   // TODO: refactor it so the checkExpr does not get assumptions as a parameter
-  def checkExpr(expr: tpd.Tree, assumptions: Assumptions)(using Context): Assumptions =
+  def checkExpr(expr: tpd.Tree, assumptions: Assumptions, ignoreCompilerGenerated: Boolean = false)(
+      using Context
+  ): Assumptions =
     logger.debug("Checking expr: " + expr.show + " // " + expr) {
       expr match
         case ident: tpd.Ident =>
@@ -152,6 +154,15 @@ class ScinearPhase() extends PluginPhase:
           )
           if isLinear(ident.symbol) then
             if assumptions.contains(ident.name) then Map[Name, Symbol](ident.name -> ident.symbol)
+            else if ignoreCompilerGenerated && isCompilerGeneratedVariable(ident.symbol) then
+              /** Compiler might generate use cases of a compiler generated variable (e.g., field
+                * accessors), that does not follow linearity rules.
+                */
+              report.warning(
+                s"Ignoring double use of linear value ${ident.name} here, assuming it is compiler generated.",
+                ident.sourcePos
+              )
+              emptyAssumptions
             else
               report.error(
                 s"Linear value ${ident.name} is being used twice, or is not accessed directly.",
@@ -169,8 +180,14 @@ class ScinearPhase() extends PluginPhase:
             )
             .usedAssumptions
 
-        case tpd.Select(qualifier, _) =>
-          checkExpr(qualifier, assumptions)
+        case tpd.Select(qualifier, name) =>
+          checkExpr(
+            qualifier,
+            assumptions,
+            /* if it's field accessor ignore it if it's compiler generated */ isFieldAccessorMethod(
+              name.toString
+            )
+          )
 
         case Util.Call(ref, argss) =>
           val afterFn = AssumptionBag(assumptions).after(checkExpr(ref, _))
