@@ -22,3 +22,13 @@ def polymorphicFunctionArgument(): Unit = {
   val w = f(z) // error: LinearTypes
   w
 }
+
+def g[T <: Linear](x: T): T = x
+
+/** Allow polymorphic function arguments with upper bound linear types to be linear.
+  */
+def boundedPolymorphicFunctionArgument(): Unit = {
+  val x = Box(2)
+  val y = g(x) // noerror:
+  y
+}

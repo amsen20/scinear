@@ -11,6 +11,8 @@ import dotty.tools.dotc.core.Names.Name
 import dotty.tools.dotc.core.Names.TermName
 import dotty.tools.dotc.core.StdNames
 import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.TypeUtils
+import dotty.tools.dotc.core.Types
 import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.plugins.PluginPhase
 import dotty.tools.dotc.plugins.StandardPlugin
@@ -46,13 +48,37 @@ class ScinearPhase() extends PluginPhase:
                 fun.sourcePos
               )
             else
-              args.foreach(arg =>
-                if arg.tpe != null && isLinear(arg.tpe) then
-                  report.error(
-                    "Passing linear types as polymorphic arguments are allowed only for linear type methods",
-                    arg.sourcePos
+              def checkArgWithParamLinearity(
+                  isParamsLinear: List[Boolean],
+                  args: List[tpd.Tree]
+              ): Unit =
+                assert(isParamsLinear.length >= args.length)
+                isParamsLinear
+                  .zip(args)
+                  .foreach((isParamLinear, arg) =>
+                    println(arg.show + ": " + isParamLinear)
+                    if arg.tpe != null && isLinear(arg.tpe) && !isParamLinear then
+                      report.error(
+                        "Passing linear types as polymorphic type arguments are not allowed here",
+                        arg.sourcePos
+                      )
                   )
-              )
+
+              val isParamsLinear = fun.tpe.widen.paramInfoss.flatten.map(param => isLinear(param))
+              if isParamsLinear.length < args.length then
+                report.warning(
+                  "Type apply function parameters are less than arguments, don't know how to check this case, following back into safe mode.",
+                  tree.sourcePos
+                )
+                checkArgWithParamLinearity(
+                  List.fill(args.length)(false),
+                  args
+                )
+              else
+                checkArgWithParamLinearity(
+                  isParamsLinear,
+                  args
+                )
           case _ => traverseChildren(tree)
     traverser.traverse(expr)
 
@@ -413,6 +439,7 @@ class ScinearPhase() extends PluginPhase:
     else
       val assumptions: Assumptions =
         defDef.paramss.flatten
+          .filter(param => param.tpe.isInstanceOf[Types.TermRef])
           .filter(param => isLinear(param.symbol))
           .map(param => param.name -> param.symbol)
           .toMap
