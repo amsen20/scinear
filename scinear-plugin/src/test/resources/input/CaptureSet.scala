@@ -27,4 +27,10 @@ trait TypeParamCheck {
     box.value
     nested // noerror:
   }
+
+  def mentionedInTypeParamButNotLinear = {
+    val o: Object^ = new Object
+    val capturer: Capturer[{o}] = new Capturer[{o}]()
+    capturer // noerror:
+  }
 }

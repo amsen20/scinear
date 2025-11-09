@@ -37,15 +37,15 @@ def getLinearTermsMentionedInTypeParameters(sym: Symbols.Symbol)(using
         args.foreach {
           case annotatedType @ Types.AnnotatedType(underlying, annot)
               if isRetainsCaptureSetAnnotatedType(annotatedType) =>
-            if annot.symbol == Symbols.defn.RetainsAnnot then
-              annot.tree.tpe.argInfos
-                .map(arg => flattenOrTypes(arg))
-                .flatten
-                .foreach {
-                  case elem @ Types.TermRef(qualType, _) =>
-                    if qualType eq Types.NoPrefix then linearTerms += elem.symbol
-                  case _ => ()
-                }
+            annot.tree.tpe.argInfos
+              .map(arg => flattenOrTypes(arg))
+              .flatten
+              .foreach {
+                case elem @ Types.TermRef(qualType, _) =>
+                  if (qualType eq Types.NoPrefix) && isLinear(elem.symbol.info) then
+                    linearTerms += elem.symbol
+                case _ => ()
+              }
           case _ => ()
         }
         traverseChildren(appliedType)
