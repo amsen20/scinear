@@ -83,3 +83,9 @@ class A6(val box: Box) extends Linear {
   trait C // error: LinearTypes
   object D // error: LinearTypes
 }
+
+/** Allow linear types to have fields initialization
+  */
+class A7(val box: Box) extends Linear {
+  val a = 1 // noerror
+}

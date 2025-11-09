@@ -199,8 +199,13 @@ class ScinearPhase() extends PluginPhase:
             )
             .usedAssumptions
 
-        case _: tpd.This =>
+        case tthis: tpd.This =>
           // TODO: make sure it is ok
+          if isLinear(tthis.symbol) then
+            report.error(
+              "Referring linear types as `this` is not allowed",
+              tthis.sourcePos
+            )
           emptyAssumptions
 
         case tpd.Literal(_) =>
@@ -364,13 +369,10 @@ class ScinearPhase() extends PluginPhase:
       .body
       .map {
         case valDef: tpd.ValDef =>
-          if valDef.rhs != tpd.EmptyTree then
-            report.error(
-              "Only fields without initialization are allowed in linear types",
-              valDef.sourcePos
-            )
-            false
-          else true
+          checkExpr(valDef.rhs, emptyAssumptions).foreach((name, symbol) =>
+            report.error(s"Linear argument ${name} is not used", symbol.sourcePos)
+          )
+          true
 
         case defDef: tpd.DefDef =>
           if !defDef.symbol.isAnyOverride then
