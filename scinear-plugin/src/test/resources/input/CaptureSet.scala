@@ -3,6 +3,7 @@ import scinear.Linear
 
 class Box(val value: Int) extends Linear
 class Capturer[CS^]
+class Nested[T]
 /** Don't allow a objects that are capturing a linear value, be used after the linear value is consumed.
   */
 trait TypeParamCheck {
@@ -18,5 +19,12 @@ trait TypeParamCheck {
     val obj: Object^{box} = new Object
     box.value
     obj // noerror:
+  }
+
+  def mentionedInNestedTypeParam = {
+    val box: Box^ = Box(42)
+    val nested: Nested[Object^{box}] = new Nested[Object^{box}]
+    box.value
+    nested // noerror:
   }
 }
