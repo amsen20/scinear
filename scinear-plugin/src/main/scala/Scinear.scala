@@ -63,9 +63,14 @@ class ScinearPhase() extends PluginPhase:
                       )
                   )
 
-              val isParamsLinear = fun.tpe.widen match
+              val isParamsLinear = fun.symbol.info match
                 case pt: Types.PolyType =>
-                  pt.paramInfos.map(param => isLinear(param))
+                  val paramSymbols = fun.symbol.paramSymss.flatten
+                  pt.paramInfos
+                    .zip(paramSymbols)
+                    .map((paramInfo, paramSymbol) =>
+                      isLinear(paramInfo) || doesHideLinearity(paramSymbol)
+                    )
                 case _ => List.empty[Boolean]
 
               checkArgWithParamLinearity(

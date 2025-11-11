@@ -5,8 +5,11 @@ import dotty.tools.dotc.core.Symbols
 import dotty.tools.dotc.core.Types
 
 def isDirectLinear(tpe: Types.Type)(using Context): Boolean =
-  // TODO: tpe.isThisTypeOf() --- check if this works
+  // TODO: use `requiredClass` instead of string comparison.
   tpe.baseClasses.exists(_.fullName.toString == "scinear.Linear")
+
+def doesHideLinearity(sym: Symbols.Symbol)(using Context): Boolean =
+  sym.annotations.exists(annot => annot.symbol.fullName.toString == "scinear.HideLinearity")
 
 def isFunctionType(tpe: Types.Type)(using Context): Boolean =
   // TODO: Make sure this is the correct way

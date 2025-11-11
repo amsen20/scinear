@@ -1,3 +1,4 @@
+import scinear.HideLinearity
 import scinear.Linear
 
 class Holder[T](val x: T)
@@ -26,12 +27,14 @@ def polymorphicFunctionArgument(): Unit = {
 def g[T](x: T): T = x
 def gLinear[T <: Linear](x: T): T = x
 def justTypeParam[T]: Unit = ()
+def justTypeParamHider[@HideLinearity T]: Unit = ()
 def justTypeParamLinear[T <: Linear]: Unit = ()
 
 /** Allow polymorphic function arguments with upper bound linear types to be linear.
   */
 def boundedPolymorphicFunctionArgument(): Unit = {
   justTypeParam[Box] // error: LinearTypes
+  justTypeParamHider[Box] // noerror:
   justTypeParamLinear[Box] // noerror:
   val x1 = Box(1)
   val y1 = g(x1) // error: LinearTypes
