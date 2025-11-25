@@ -50,3 +50,9 @@ def flattenOrTypes(tpe: Types.Type): List[Types.Type] = tpe match
   case Types.OrType(left, right) =>
     flattenOrTypes(left) ++ flattenOrTypes(right)
   case _ => List(tpe)
+
+def isOptionType(tpe: Types.Type)(using ctx: Context): Boolean =
+  tpe.widen.isThisTypeOf(ctx.definitions.OptionClass)
+
+def isTupleType(tpe: Types.Type)(using ctx: Context): Boolean =
+  ctx.definitions.isTupleNType(tpe)
