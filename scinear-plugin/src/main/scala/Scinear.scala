@@ -4,7 +4,6 @@ import dotty.tools.dotc.ast.Trees
 import dotty.tools.dotc.ast.Trees.Tree
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.ast.tpd.*
-import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Names
 import dotty.tools.dotc.core.Names.Name
@@ -347,9 +346,12 @@ class ScinearPhase() extends PluginPhase:
             .usedAssumptions
 
         case tpd.Inlined(call, bindings, expansion) =>
-          // TODO: support it
-          // TODO: the hard part is to parse the bindings and feed them to the expansion
-          throw new Exception("Inlined is not supported yet")
+          /** For now, we assume that the inline does not allow in linear values to be passed
+            * through the bindings.
+            *
+            * TODO: Transfer the linear values through the bindings.
+            */
+          checkExpr(expansion, emptyAssumptions)
 
         case tpd.Thicket(List()) =>
           // TODO: make sure it is ok

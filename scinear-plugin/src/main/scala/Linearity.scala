@@ -18,7 +18,8 @@ def isFunctionType(tpe: Types.Type)(using Context): Boolean =
 def isFunctionLinear(tpe: Types.Type)(using Context): Boolean = ???
 
 def isLinear(tpe: Types.Type)(using Context): Boolean =
-  // FIXME: Should not allow polymorphic functions to get linear types as type arguments.
+  // TODO: Only allow `Option` and `Tuple` to be promoted to linear.
+  // TODO: Do not allow other types to have linear type parameter unless they are marking it as `@HideLinearity`.
   isDirectLinear(tpe) || (
     tpe match
       case Types.AppliedType(
