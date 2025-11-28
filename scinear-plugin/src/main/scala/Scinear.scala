@@ -293,6 +293,9 @@ class ScinearPhase() extends PluginPhase:
           usedAfterExpr ++ statsResult.assumptionsUsed -- statsResult.assumptionsCreated
 
         case tpd.If(cond, thenp, elsep) =>
+          /** TODO: Instead of enforcing all branches to use the same linear values, union them and
+            * consider that as used.
+            */
           val afterCond = AssumptionBag(assumptions).after(checkExpr(cond, _))
           val thenUsed = checkExpr(thenp, afterCond.notUsedAssumptions)
           val elseUsed = checkExpr(elsep, afterCond.notUsedAssumptions)
@@ -305,6 +308,9 @@ class ScinearPhase() extends PluginPhase:
           checkExpr(arg, assumptions)
 
         case tpd.Match(selector, cases) =>
+          /** TODO: Instead of enforcing all cases to use the same linear values, union them and
+            * consider that as used.
+            */
           val afterSelector = AssumptionBag(assumptions).after(checkExpr(selector, _))
           val casesAssumptions =
             cases.map(caseDef => checkCase(caseDef, afterSelector.notUsedAssumptions))
@@ -408,6 +414,7 @@ class ScinearPhase() extends PluginPhase:
   def checkLinearTypeDef(typeDef: tpd.TypeDef)(using Context): Unit =
     // TODO: check if the typedef is not an object
     // TODO: should a linear type derive from another non-linear type? what will happen to the methods?
+    // TODO: Don't allow nonlinear types inherit from linear types.
     typeDef.rhs
       .asInstanceOf[tpd.Template]
       .body
