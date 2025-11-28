@@ -25,6 +25,29 @@ def isRetainsCaptureSetAnnotatedType(annotType: Types.AnnotatedType)(using
       annotType.annot.symbol == Symbols.defn.RetainsAnnot
     case _ => false
 
+def resolveRetainsCaptureSetAnnotationRecursive(tpe: Types.Type)(using
+    Context
+): List[Symbols.Symbol] =
+  val linearTerms = scala.collection.mutable.ListBuffer.empty[Symbols.Symbol]
+
+  tpe.safeDealias match
+    case annotType @ Types.AnnotatedType(underlying, annot)
+        if isRetainsCaptureSetAnnotatedType(annotType) =>
+
+      annot.tree.tpe.argInfos
+        .map(arg => flattenOrTypes(arg))
+        .flatten
+        .foreach {
+          case elem @ Types.TermRef(qualType, _) =>
+            if (qualType eq Types.NoPrefix) && isLinear(elem.symbol.info) then
+              linearTerms += elem.symbol
+          case elem =>
+            linearTerms ++= resolveRetainsCaptureSetAnnotationRecursive(elem.safeDealias)
+        }
+    case _ => ()
+
+  linearTerms.toList
+
 def getLinearTermsMentionedInTypeParameters(sym: Symbols.Symbol)(using
     Context
 ): List[Symbols.Symbol] =
@@ -34,23 +57,13 @@ def getLinearTermsMentionedInTypeParameters(sym: Symbols.Symbol)(using
   val traverser = new Types.TypeTraverser:
     def traverse(tp: Types.Type): Unit = tp match
       case appliedType @ Types.AppliedType(tycon, args) =>
-        args.foreach {
-          case annotatedType @ Types.AnnotatedType(underlying, annot)
-              if isRetainsCaptureSetAnnotatedType(annotatedType) =>
-            if annot.symbol == Symbols.defn.RetainsAnnot then
-              annot.tree.tpe.argInfos
-                .map(arg => flattenOrTypes(arg))
-                .flatten
-                .foreach {
-                  case elem @ Types.TermRef(qualType, _) =>
-                    if qualType eq Types.NoPrefix then linearTerms += elem.symbol
-                  case _ => ()
-                }
-          case _ => ()
+        args.foreach { arg =>
+          linearTerms ++= resolveRetainsCaptureSetAnnotationRecursive(arg)
         }
         traverseChildren(appliedType)
       case Types.AnnotatedType(underlying, _) => traverse(underlying)
-      case other                              => traverseChildren(other)
+      case other                              =>
+        traverseChildren(other)
 
   traverser.traverse(sym.info)
   linearTerms.toList

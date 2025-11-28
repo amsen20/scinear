@@ -4,13 +4,14 @@ import dotty.tools.dotc.ast.Trees
 import dotty.tools.dotc.ast.Trees.Tree
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.ast.tpd.*
-import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Names
 import dotty.tools.dotc.core.Names.Name
 import dotty.tools.dotc.core.Names.TermName
 import dotty.tools.dotc.core.StdNames
 import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.TypeUtils
+import dotty.tools.dotc.core.Types
 import dotty.tools.dotc.core.Types.Type
 import dotty.tools.dotc.plugins.PluginPhase
 import dotty.tools.dotc.plugins.StandardPlugin
@@ -28,10 +29,37 @@ class Scinear extends StandardPlugin:
     ScinearPhase() :: Nil
 end Scinear
 
+class LinearTypesUsageTracker:
+  val linearTypesInternalUsedFields: mutable.Map[Symbol, Set[Name]] =
+    mutable.Map.empty[Symbol, Set[Name]]
+  val linearTypesExternalUsedFields: mutable.Map[Symbol, Set[Name]] =
+    mutable.Map.empty[Symbol, Set[Name]]
+
+  def addUsage(linearType: Symbol, field: Name, isInternal: Boolean): Unit =
+    val usedFieldsMap =
+      if isInternal then linearTypesInternalUsedFields else linearTypesExternalUsedFields
+    val usedFields = usedFieldsMap.getOrElse(linearType, Set.empty[Name])
+    usedFieldsMap.update(linearType, usedFields + field)
+
+  def validate()(using ctx: Context): Unit =
+    linearTypesInternalUsedFields.foreach { (linearType, internalFields) =>
+      val externalFields = linearTypesExternalUsedFields.getOrElse(linearType, Set.empty)
+      val commonFields = internalFields.intersect(externalFields)
+      if commonFields.nonEmpty then
+        report.error(
+          s"Linear type ${linearType.name} has fields ${commonFields.mkString(", ")} used both internally and externally",
+          linearType.sourcePos
+        )
+    }
+
+end LinearTypesUsageTracker
+
 class ScinearPhase() extends PluginPhase:
   override def phaseName: String = ScinearPhase.name
   override val runsAfter = Set("refchecks")
   override def runsBefore: Set[String] = Set("protectedAccessors")
+
+  val usageTracker = new LinearTypesUsageTracker()
 
   def checkLinearPolymorphicTypeArgument(expr: tpd.Tree)(using ctx: Context): Unit =
     val traverser = new TreeTraverser:
@@ -46,12 +74,36 @@ class ScinearPhase() extends PluginPhase:
                 fun.sourcePos
               )
             else
-              args.foreach(arg =>
-                if arg.tpe != null && isLinear(arg.tpe) then
-                  report.error(
-                    "Passing linear types as polymorphic arguments are allowed only for linear type methods",
-                    arg.sourcePos
+              def checkArgWithParamLinearity(
+                  isParamsLinear: List[Boolean],
+                  args: List[tpd.Tree]
+              ): Unit =
+                assert(isParamsLinear.length >= args.length)
+                isParamsLinear
+                  .zip(args)
+                  .foreach((isParamLinear, arg) =>
+                    if arg.tpe != null && isLinear(arg.tpe) && !isParamLinear then
+                      report.error(
+                        "Passing linear types as polymorphic type arguments are not allowed here",
+                        arg.sourcePos
+                      )
                   )
+
+              val isParamsLinear = fun.symbol.info match
+                case pt: Types.PolyType =>
+                  val paramSymbols = fun.symbol.paramSymss.flatten
+                  pt.paramInfos
+                    .zip(paramSymbols)
+                    .map((paramInfo, paramSymbol) =>
+                      isLinear(paramInfo) || doesHideLinearity(paramSymbol)
+                    )
+                case _ => List.empty[Boolean]
+
+              checkArgWithParamLinearity(
+                if isParamsLinear.length < args.length then
+                  isParamsLinear ++ List.fill(args.length - isParamsLinear.length)(false)
+                else isParamsLinear,
+                args
               )
           case _ => traverseChildren(tree)
     traverser.traverse(expr)
@@ -121,7 +173,9 @@ class ScinearPhase() extends PluginPhase:
     afterBody.usedAssumptions -- createdAssumptions
 
   // TODO: refactor it so the checkExpr does not get assumptions as a parameter
-  def checkExpr(expr: tpd.Tree, assumptions: Assumptions)(using Context): Assumptions =
+  def checkExpr(expr: tpd.Tree, assumptions: Assumptions, ignoreCompilerGenerated: Boolean = false)(
+      using Context
+  ): Assumptions =
     logger.debug("Checking expr: " + expr.show + " // " + expr) {
       expr match
         case ident: tpd.Ident =>
@@ -135,6 +189,15 @@ class ScinearPhase() extends PluginPhase:
           )
           if isLinear(ident.symbol) then
             if assumptions.contains(ident.name) then Map[Name, Symbol](ident.name -> ident.symbol)
+            else if ignoreCompilerGenerated && isCompilerGeneratedVariable(ident.symbol) then
+              /** Compiler might generate use cases of a compiler generated variable (e.g., field
+                * accessors), that does not follow linearity rules.
+                */
+              report.warning(
+                s"Ignoring double use of linear value ${ident.name} here, assuming it is compiler generated.",
+                ident.sourcePos
+              )
+              emptyAssumptions
             else
               report.error(
                 s"Linear value ${ident.name} is being used twice, or is not accessed directly.",
@@ -152,8 +215,20 @@ class ScinearPhase() extends PluginPhase:
             )
             .usedAssumptions
 
-        case tpd.Select(qualifier, _) =>
-          checkExpr(qualifier, assumptions)
+        case select @ tpd.Select(qualifier, name) =>
+          if isLinear(select.tpe) && isLinear(qualifier.tpe) then
+            usageTracker.addUsage(
+              qualifier.typeOpt.typeSymbol,
+              name,
+              isInternal = false
+            )
+          checkExpr(
+            qualifier,
+            assumptions,
+            /* if it's field accessor ignore it if it's compiler generated */ isFieldAccessorMethod(
+              name.toString
+            )
+          )
 
         case Util.Call(ref, argss) =>
           val afterFn = AssumptionBag(assumptions).after(checkExpr(ref, _))
@@ -165,8 +240,13 @@ class ScinearPhase() extends PluginPhase:
             )
             .usedAssumptions
 
-        case _: tpd.This =>
+        case tthis: tpd.This =>
           // TODO: make sure it is ok
+          if isLinear(tthis.symbol) then
+            report.error(
+              "Referring linear types as `this` is not allowed",
+              tthis.sourcePos
+            )
           emptyAssumptions
 
         case tpd.Literal(_) =>
@@ -213,6 +293,9 @@ class ScinearPhase() extends PluginPhase:
           usedAfterExpr ++ statsResult.assumptionsUsed -- statsResult.assumptionsCreated
 
         case tpd.If(cond, thenp, elsep) =>
+          /** TODO: Instead of enforcing all branches to use the same linear values, union them and
+            * consider that as used.
+            */
           val afterCond = AssumptionBag(assumptions).after(checkExpr(cond, _))
           val thenUsed = checkExpr(thenp, afterCond.notUsedAssumptions)
           val elseUsed = checkExpr(elsep, afterCond.notUsedAssumptions)
@@ -225,6 +308,9 @@ class ScinearPhase() extends PluginPhase:
           checkExpr(arg, assumptions)
 
         case tpd.Match(selector, cases) =>
+          /** TODO: Instead of enforcing all cases to use the same linear values, union them and
+            * consider that as used.
+            */
           val afterSelector = AssumptionBag(assumptions).after(checkExpr(selector, _))
           val casesAssumptions =
             cases.map(caseDef => checkCase(caseDef, afterSelector.notUsedAssumptions))
@@ -251,12 +337,12 @@ class ScinearPhase() extends PluginPhase:
             cases.map(caseDef => checkExpr(caseDef.body, afterBlock.notUsedAssumptions))
           if !casesAssumptions.forall(_ == casesAssumptions.head) then
             report.error("All catch blocks should use the same linear values", expr.sourcePos)
-          checkExpr(
+          val usedInCases = casesAssumptions.foldLeft(emptyAssumptions)(_ ++ _)
+          val usedInFinally = checkExpr(
             finalizer,
-            afterBlock.notUsedAssumptions -- (if casesAssumptions.nonEmpty then
-                                                casesAssumptions.head
-                                              else emptyAssumptions)
+            afterBlock.notUsedAssumptions -- usedInCases
           )
+          afterBlock.usedAssumptions ++ usedInCases ++ usedInFinally
 
         case tpd.SeqLiteral(elems, elemtpt) =>
           elems
@@ -266,9 +352,12 @@ class ScinearPhase() extends PluginPhase:
             .usedAssumptions
 
         case tpd.Inlined(call, bindings, expansion) =>
-          // TODO: support it
-          // TODO: the hard part is to parse the bindings and feed them to the expansion
-          throw new Exception("Inlined is not supported yet")
+          /** For now, we assume that the inline does not allow in linear values to be passed
+            * through the bindings.
+            *
+            * TODO: Transfer the linear values through the bindings.
+            */
+          checkExpr(expansion, emptyAssumptions)
 
         case tpd.Thicket(List()) =>
           // TODO: make sure it is ok
@@ -322,57 +411,65 @@ class ScinearPhase() extends PluginPhase:
     true
 
   // TODO: add logging which makes it easier to understand the error
-  def checkLinearTypeDef(typeDef: tpd.TypeDef)(using Context): Boolean =
+  def checkLinearTypeDef(typeDef: tpd.TypeDef)(using Context): Unit =
     // TODO: check if the typedef is not an object
     // TODO: should a linear type derive from another non-linear type? what will happen to the methods?
+    // TODO: Don't allow nonlinear types inherit from linear types.
     typeDef.rhs
       .asInstanceOf[tpd.Template]
       .body
-      .map {
-        case valDef: tpd.ValDef =>
-          if valDef.rhs != tpd.EmptyTree then
-            report.error(
-              "Only fields without initialization are allowed in linear types",
-              valDef.sourcePos
+      .foldLeft(emptyAssumptions) { (assumptions, stat) =>
+        stat match
+          case valDef: tpd.ValDef =>
+            val usedAndDefinedInExpr = checkExpr(valDef.rhs, assumptions)
+            (usedAndDefinedInExpr -- assumptions).foreach((name, symbol) =>
+              report.error(s"Linear value ${name} is not used", symbol.sourcePos)
             )
-            false
-          else true
 
-        case defDef: tpd.DefDef =>
-          if !defDef.symbol.isAnyOverride then
-            if !isCompilerGeneratedMethod(defDef) then
-              report.error("Only default methods are allowed in linear types", defDef.sourcePos)
-              false
+            val remainingAssumptions = assumptions -- usedAndDefinedInExpr
+            val usedAssumptions = assumptions -- remainingAssumptions
+            usedAssumptions
+              .foreach((name, _) => usageTracker.addUsage(typeDef.symbol, name, isInternal = true))
+
+            valDef match
+              case vdef if isLinear(vdef.tpt.tpe) =>
+                remainingAssumptions ++ Map[Name, Symbol](vdef.name -> vdef.symbol)
+              case _ => remainingAssumptions
+
+          case defDef: tpd.DefDef =>
+            if !defDef.symbol.isAnyOverride then
+              if !isCompilerGeneratedMethod(defDef) then
+                checkDefDef(defDef)
+                // TODO: Make a decision to allow methods or not
+                report.warning("Only default methods are allowed in linear types", defDef.sourcePos)
+              else
+                // This methods are generated by the compiler, so just informing the user about ignoring them by a warning.
+                report.warning(
+                  s"Ignoring compiler generated method ${defDef.name.toString}, if it is not generated, delete it. Linear types cannot have methods",
+                  defDef.sourcePos
+                )
             else
-              // This methods are generated by the compiler, so just informing the user about ignoring them by a warning.
-              report.warning(
-                s"Ignoring compiler generated method ${defDef.name.toString}, if it is not generated, delete it. Linear types cannot have methods",
-                defDef.sourcePos
-              )
-              true
-            true
-          else
-            // Override methods are fine because linear types cannot inherit from other types so this methods are only default methods.
-            true
-
-          // TODO: check if the method is inherited, if no error.
-          // TODO: be aware of methods that are defined by default.
-          // TODO: for now, it is disabled by not allowing calling methods on linear types.
-          true
-
-        case typeDef: tpd.TypeDef =>
-          if typeDef.isClassDef then
-            report.error(
-              "You are not allowed to define new classes inside a linear type",
-              typeDef.sourcePos
+              // Override methods are fine because linear types cannot inherit from other types so this methods are only default methods.
+              (
             )
-          true
 
-        case e =>
-          report.error("This is not allowed in a linear type", e.sourcePos)
-          false
+            // TODO: check if the method is inherited, if no error.
+            // TODO: be aware of methods that are defined by default.
+            // TODO: for now, it is disabled by not allowing calling methods on linear types.
+            assumptions
+
+          case typeDef: tpd.TypeDef =>
+            if typeDef.isClassDef then
+              report.error(
+                "You are not allowed to define new classes inside a linear type",
+                typeDef.sourcePos
+              )
+            assumptions
+
+          case e =>
+            report.error("This is not allowed in a linear type", e.sourcePos)
+            assumptions
       }
-      .fold(true)(_ && _)
 
   // TODO: remove this returning booleans
   def checkNonLinearTypeDef(typeDef: tpd.TypeDef)(using Context): Boolean =
@@ -413,6 +510,7 @@ class ScinearPhase() extends PluginPhase:
     else
       val assumptions: Assumptions =
         defDef.paramss.flatten
+          .filter(param => param.tpe.isInstanceOf[Types.TermRef])
           .filter(param => isLinear(param.symbol))
           .map(param => param.name -> param.symbol)
           .toMap
@@ -438,9 +536,13 @@ class ScinearPhase() extends PluginPhase:
       case _ =>
       // TODO: recursively check the tree
 
+  def checkLinearTypeFieldUsages()(using Context): Unit =
+    usageTracker.validate()
+
   override def transformUnit(tree: tpd.Tree)(using Context): tpd.Tree =
     checkLinearPolymorphicTypeArgument(tree)
     reachEntryPoints(tree)
+    checkLinearTypeFieldUsages()
     tree
 
 end ScinearPhase

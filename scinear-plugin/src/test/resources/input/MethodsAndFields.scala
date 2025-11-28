@@ -58,8 +58,8 @@ class B(val box: Box) // error: LinearTypes
   * getting the linear type as an argument (self)
   */
 class A2(val name: String) extends Linear {
-  def print(): Unit = { // error: LinearTypes
-    println(this.name)
+  def print(): Unit = {
+    println(this.name) // error: LinearTypes
   }
 }
 
@@ -72,7 +72,7 @@ class A3(val name: String) extends Linear {
 /** Don't allow using a linear type twice during initialization
   */
 class A4(val box: Box) extends Linear {
-  val a = box.value // error: LinearTypes
+  val a = box.value
   val b = box.value // error: LinearTypes
 }
 
@@ -82,4 +82,31 @@ class A6(val box: Box) extends Linear {
   class B // error: LinearTypes
   trait C // error: LinearTypes
   object D // error: LinearTypes
+}
+
+/** Allow linear types to have fields initialization
+  */
+class A7(val box: Box) extends Linear {
+  val a = 1 // noerror
+}
+
+/** Don't allow linear fields used during construction to be accessed from outside.
+  */
+class InitializationDuringConstruction(val _box: Box) extends Linear { // error: Linear types
+  val box = _box
+}
+class InitializationDuringConstruction2(val _box: Box) extends Linear { // noerror
+  val box = _box
+}
+
+def checkAccessingUsedFieldsDuringConstruction(): Unit = {
+  // access the used term
+  val box = new Box(10)
+  val obj = new InitializationDuringConstruction(box)
+  obj._box
+
+  // access the unused term
+  val box2 = new Box(20)
+  val obj2 = new InitializationDuringConstruction2(box2)
+  obj2.box // noerror
 }

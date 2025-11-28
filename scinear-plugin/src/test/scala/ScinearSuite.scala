@@ -22,6 +22,7 @@ class ScinearSuite extends ThoroughCompilerSuite:
     */
   def compareErrorsFromCompilation(file: java.io.File) =
     val sourceCode = Source.fromFile(file).mkString
+    // TODO: make sure all errors are from scinear plugin.
     val got = compileAndGetErrors(sourceCode)
     val shouldErrorLines = sourceCode
       .split("\n")
