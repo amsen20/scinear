@@ -51,3 +51,11 @@ def boundedPolymorphicFunctionArgumentThroughHolder(): Unit = {
   holderAccessor(Holder(Box(42))) // error: LinearTypes
   holderAccessorLinear(Holder(Box(42)))
 }
+
+// FIXME: The following case does not work:
+// def curried[T](x: T)[@HideLinearity S](y: S): Unit = ()
+
+// def hideLinearity(): Unit = {
+//   val x1 = Box(1)
+//   curried(1)[Box](x1) // noerror:
+// }
