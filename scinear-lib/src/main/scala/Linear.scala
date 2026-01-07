@@ -14,4 +14,11 @@ sealed class HideLinearity extends annotation.StaticAnnotation
   * TODO: Either change `UnsafeBase` name to something more descriptive, like `BasicType`, or make
   * both of them annotations.
   */
-trait Linear {}
+trait Linear:
+  /** A method to consume a linear value. Useful when need to use a linear value but has no actual
+    * use for it.
+    *
+    * Call this instead of leaving it in a single expression to avoid compiler warnings.
+    */
+  def consume(): Unit = ()
+end Linear

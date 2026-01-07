@@ -10,3 +10,8 @@ def FieldUsedOnce = {
   val box: Box = Box(42)
   println(box)
 }
+
+def UseUsingConsume = {
+  val box: Box = Box(42)
+  box.consume()
+}
